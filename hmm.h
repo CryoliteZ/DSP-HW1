@@ -126,8 +126,8 @@ static void dump_models( HMM *hmm, const int num )
 {
    int i = 0;
    for( ; i < num ; i++ ){ 
-      //		FILE *fp = open_or_die( hmm[i].model_name, "w" );
-      dumpHMM( stderr, &hmm[i] );
+      FILE *fp = open_or_die( hmm[i].model_name, "w" );
+      dumpHMM( fp, &hmm[i] );
    }
 }
 

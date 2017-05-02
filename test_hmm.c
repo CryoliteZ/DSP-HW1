@@ -8,15 +8,15 @@ using namespace std;
 
 int main()
 {
-/*
+
 	HMM hmms[5];
-	load_models( "modellist.txt", hmms, 5);
-	dump_models( hmms, 5);
-*/
-	HMM hmm_initial;
-	loadHMM( &hmm_initial, "model_init.txt" );
-	dumpHMM( stderr, &hmm_initial );
-	cout << hmm_initial.observ_num;
+	load_models( "modellist.txt", hmms, 1);
+	dump_models( hmms, 1);
+
+	// HMM hmm_initial;
+	// loadHMM( &hmm_initial, "model_init.txt" );
+	// dumpHMM( stderr, &hmm_initial );
+	// cout << hmm_initial.observ_num;
 
 	
 
