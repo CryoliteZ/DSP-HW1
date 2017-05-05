@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <sstream>
 #include <fstream>
 #include <istream>
 #include <vector>
@@ -80,69 +79,122 @@ class MyModel{
          }
 };
 
-int observation[SAMPLE_SIZE][MAX_TIME];
-MyClass c[SAMPLE_SIZE];
-void loadSeq(char*);
-int char2int(char);
+int observation[MODEL_NUM][SAMPLE_SIZE][MAX_TIME];
+MyClass c[MODEL_NUM][SAMPLE_SIZE];
 void save2HMM(string output_model, MyModel m);
+void loadSeq(string str, int id);
+int char2int(char);
 
-// our training and final HMM
-HMM hmm[1];
-
-int main(int argc,char* argv[]){
-    int iteration = atoi(argv[1]);
-    string model_init(argv[2]);
-    string output_model(argv[4]); 
-   
-    // ostringstream ss;
-    // ss << iteration;
-    // output_model =  ss.str() + output_model;
+int main(){
+  
     
     HMM init_hmm;
-	loadHMM( &init_hmm, argv[2]);
-	// dumpHMM( stderr, &init_hmm);
-    loadSeq(argv[3]);
+	loadHMM( &init_hmm, "model_init.txt" );
+	dumpHMM( stderr, &init_hmm);
+    for(int i = 1; i <= 5; ++i){
+        char buffer[10];
+        sprintf(buffer,"%d",i);
+        string filename = "seq_model_0" + string(buffer) + ".txt";
+        // cout << filename;
+        loadSeq(filename, i-1);
+    }
     
     // compute the stuff
-    for(int sid = 0; sid < SAMPLE_SIZE;  ++sid){
-        c[sid].forward(init_hmm, observation[sid]);
-        c[sid].backward(init_hmm, observation[sid]);
-        c[sid].computeGamma();
-        c[sid].computeEpsilon(init_hmm, observation[sid]);
+    for(int i = 0; i < MODEL_NUM; ++i){
+        for(int sid = 0; sid < SAMPLE_SIZE;  ++sid){
+            c[i][sid].forward(init_hmm, observation[i][sid]);
+            c[i][sid].backward(init_hmm, observation[i][sid]);
+            c[i][sid].computeGamma();
+            c[i][sid].computeEpsilon(init_hmm, observation[i][sid]);
+        }
+        cout << "-----------Forward-Backward------------\n";
+    }    
+    // // compute the initial model
+    MyModel m[MODEL_NUM];
+    for(int i = 0; i < MODEL_NUM; ++i){
+        m[i].BaumWelch(c[i], observation[i]);      
+        cout << "----------B-W------------------\n";
     }
-    // cout << "----Init----Forward-Backward------------\n";
+    // m[0].display();
+    // save to HMM struct
+    HMM hmm[MODEL_NUM];
+    for(int mid = 0; mid < MODEL_NUM; ++mid){ 
+        // define model name 
+        char buffer[10];
+        sprintf(buffer,"%d",mid+1);
+        string filename = "model_0" + string(buffer) + ".txt";
+        hmm[mid].model_name = new char[20];
+        strcpy(hmm[mid].model_name, filename.c_str());       
+        
+        hmm[mid].state_num = STATE_NUM;
+        hmm[mid].observ_num = OBSERV_NUM;          
+        for(int i = 0; i < STATE_NUM; ++i)
+            hmm[mid].initial[i] = m[mid].pi[i];         
+                       
+        for(int i = 0; i < STATE_NUM; ++i)
+            for(int j = 0; j < STATE_NUM; ++j)
+                hmm[mid].transition[i][j] = m[mid].a[i][j];      
+                
+        for(int i = 0; i < OBSERV_NUM; ++i)
+            for(int j = 0; j < STATE_NUM; ++j)
+                hmm[mid].observation[i][j] = m[mid].b[i][j];
+    }
     
-    // compute the initial model
-    MyModel m; 
-    m.BaumWelch(c, observation);      
-    // cout << "----Init------B-W------------------\n";
-    save2HMM(output_model, m);
 
     // iterate 
-    for(int i = 1; i < iteration; ++i){
-        for(int sid = 0; sid < SAMPLE_SIZE;  ++sid){
-            c[sid].forward(hmm[0], observation[sid]);
-            c[sid].backward(hmm[0], observation[sid]);
-            c[sid].computeGamma();
-            c[sid].computeEpsilon(hmm[0], observation[sid]);
+    for(int mid = 0; mid < MODEL_NUM; ++mid){
+        for(int i = 1; i < iteration; ++i){
+            for(int sid = 0; sid < SAMPLE_SIZE;  ++sid){
+                c[mid][sid].forward(hmm[mid], observation[sid]);
+                c[mid][sid].backward(hmm[mid], observation[sid]);
+                c[mid][sid].computeGamma();
+                c[mid][sid].computeEpsilon(hmm[mid], observation[sid]);
+            }
+            // cout << "----" << i + 1 <<"----Forward-Backward-----\n";
+            MyModel m; 
+            m.BaumWelch(c, observation);
+            // cout << "----" << i + 1 <<"----B-W-----\n";
+            cout << i + 1 << endl;
+
+            // save 2 HMM
+            // char buffer[10];
+            // sprintf(buffer,"%d",mid+1);
+            // string filename = "model_0" + string(buffer) + ".txt";
+            // hmm[mid].model_name = new char[20];
+            // strcpy(hmm[mid].model_name, filename.c_str());       
+            
+            hmm[mid].state_num = STATE_NUM;
+            hmm[mid].observ_num = OBSERV_NUM;          
+            for(int i = 0; i < STATE_NUM; ++i)
+                hmm[mid].initial[i] = m[mid].pi[i];         
+                        
+            for(int i = 0; i < STATE_NUM; ++i)
+                for(int j = 0; j < STATE_NUM; ++j)
+                    hmm[mid].transition[i][j] = m[mid].a[i][j];      
+                    
+            for(int i = 0; i < OBSERV_NUM; ++i)
+                for(int j = 0; j < STATE_NUM; ++j)
+                    hmm[mid].observation[i][j] = m[mid].b[i][j];
+                  
         }
-        // cout << "----" << i + 1 <<"----Forward-Backward-----\n";
-        MyModel m; 
-        m.BaumWelch(c, observation);
-        // cout << "----" << i + 1 <<"----B-W-----\n";
-        // cout << i + 1 << endl;
-        save2HMM(output_model, m);      
     }    
 
+
+
+    dump_models( hmm, 5);
+    cout << "dump done" << endl;
+
+
+
+
+   
     
-    // save2HMM(output_model, m);   
+
     
-    dump_models( hmm, 1);
-    // cout << "dump done" << endl;
-    /* save done */
     
     return 0;
 }
+
 
 void save2HMM(string output_model, MyModel m){
     /* Save to HMM struct */
@@ -166,7 +218,8 @@ void save2HMM(string output_model, MyModel m){
 }
 
 
-int MyModel::BaumWelch(MyClass c[SAMPLE_SIZE], int o[][MAX_TIME]){  
+int MyModel::BaumWelch(MyClass c[SAMPLE_SIZE], int o[][MAX_TIME]){
+  
     // init pi
     for(int i = 0; i < STATE_NUM; ++i){
         for(int s = 0; s < SAMPLE_SIZE; ++s){
@@ -315,13 +368,13 @@ int MyClass::display(){
     }
 }
 
-void loadSeq(char* file){
-    ifstream inFile(file);
+void loadSeq(string file, int id){
+    ifstream inFile(file.c_str());
     string line;
     int t = 0;
     while(getline(inFile, line)){
-        for(int i = 0; i < line.length(); ++i){        
-            observation[t][i] = char2int(line[i]);
+        for(int i = 0; i < line.length(); ++i){           
+            observation[id][t][i] = char2int(line[i]);
         }
         t++;
     }
@@ -332,4 +385,3 @@ int char2int(char s){
     int x = s - 65;
     return x;
 }
-

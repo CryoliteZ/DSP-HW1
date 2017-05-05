@@ -10,8 +10,13 @@ int main()
 {
 
 	HMM hmms[5];
-	load_models( "modellist.txt", hmms, 1);
-	dump_models( hmms, 1);
+	load_models( "modellist.txt", hmms, 5);
+	for(int i = 0; i < 5; ++i){
+		for(int j = 0; j < 5; ++j){
+			cout << hmms[4].initial[j] << " ";
+		}
+	}
+	dump_models( hmms, 5);
 
 	// HMM hmm_initial;
 	// loadHMM( &hmm_initial, "model_init.txt" );
